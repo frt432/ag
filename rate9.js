@@ -1,6 +1,9 @@
 (function () {
     'use strict';
 
+    // Безопасное объявление jQuery для работы в strict mode
+    var $ = window.$ || Lampa.$;
+
     Lampa.Platform.tv();
 
     var ANIMATED_REACTIONS_BASE_URL = 'https://amikdn.github.io/img';
@@ -477,7 +480,7 @@
         return ratingElement;
     }
 
-    function createRatingInnerBlock() {
+    var createRatingInnerBlock = function() {
         var el = document.createElement('div');
         el.className = voteClass();
         var bgAlpha = getRatingBackgroundAlpha();
@@ -497,7 +500,7 @@
         return line;
     }
 
-    // ТУТ ИЗМЕНЕНО: Жестко глушим видимость Кинопоиска и Лампы в интерфейсе
+    // ТУТ ЗАГЛУШЕНО: Намертво отключаем отображение Кинопоиска и Лампы в UI карточек
     function isRatingSourceVisible(source) {
         if (source === 'kp' || source === 'lampa') return false; 
         var key = 'rating_show_' + source;
@@ -552,7 +555,7 @@
                     kpDiv.textContent = kpText;
                     kpDiv.style.color = getRatingColor(kpText);
                 }
-                var show = (kpVal > 0) && isRatingSourceVisible('kp'); // Тут всегда будет false
+                var show = (kpVal > 0) && isRatingSourceVisible('kp'); 
                 kpItem.style.display = show ? '' : 'none';
             }
         } catch (e) {}
@@ -577,7 +580,7 @@
                         lampaReactionIcon.style.backgroundImage = '';
                     }
                 }
-                var show = hasLampa && isRatingSourceVisible('lampa'); // Тут всегда будет false
+                var show = hasLampa && isRatingSourceVisible('lampa'); 
                 lampaItem.style.display = show ? '' : 'none';
             }
         } catch (e) {}
@@ -605,7 +608,6 @@
         if (el.dataset.movieId !== idStr) return;
         el.classList.add('card__vote--separate');
         
-        // ТУТ ИЗМЕНЕНО: Если это Кинопоиск или Лампа — просто прячем элемент
         if (rateSource === 'kp' || rateSource === 'lampa') {
             el.style.display = 'none';
             return;
@@ -628,7 +630,7 @@
         if (rateSource === 'imdb') {
             getKinopoiskRating(data, function (res) {
                 if (!el.parentNode || el.dataset.movieId !== idStr) return;
-                var val = res.imdb; // Извлекаем только IMDB
+                var val = res.imdb; 
                 if (val && val > 0) {
                     var text = formatRating(val);
                     var color = getRatingColor(val);
@@ -684,12 +686,9 @@
             ratingElement.innerHTML = '<span style="color:' + color + '">' + formatRating(tmdb) + '</span> <span class="source--name"></span>';
             var bg = getRatingBackgroundColor(tmdb);
             ratingElement.style.background = bg || ('rgba(0,0,0,' + getRatingBackgroundAlpha() + ')');
-            return;
         }
-        var lampaKey = (data.seasons || data.first_air_date || data.original_name) ? 'tv_' + data.id : 'movie_' + data.id;
     }
 
-    // Слушатель событий карточек
     Lampa.Listener.follow('card', function (e) {
         if (e.type === 'create') {
             if (Lampa.Storage.get('rating_display_mode', 'separate') === 'separate') {
@@ -707,6 +706,96 @@
                 line.dataset.movieId = e.data.id.toString();
                 updateCardRatingLine(line, e.data);
             }
+        }
+    });
+
+    // ПОЛНЫЙ ОРИГИНАЛЬНЫЙ БЛОК НАСТРОЕК (Вырезаны только лишние тумблеры вывода KP/Лампы)
+    Lampa.Settings.listener.follow('open', function (e) {
+        if (e.name === 'main') {
+            var item = $('<div class="settings-folder selector" data-component="ratings">Рейтинги</div>');
+            item.on('hover:enter', function () {
+                Lampa.Settings.add({
+                    title: 'Рейтинги',
+                    component: 'ratings',
+                    onBack: function () {
+                        Lampa.Settings.main();
+                    }
+                });
+            });
+            e.body.find('[data-component="plugins"]').after(item);
+        }
+        if (e.name === 'ratings') {
+            var body = Lampa.Settings.Builder([
+                {
+                    title: 'Режим отображения',
+                    type: 'select',
+                    name: 'rating_display_mode',
+                    value: 'separate',
+                    options: {
+                        separate: 'Раздельно',
+                        line: 'В одну линию'
+                    }
+                },
+                {
+                    title: 'Положение',
+                    type: 'select',
+                    name: 'rating_position',
+                    value: 'bottom',
+                    options: {
+                        top: 'Сверху',
+                        bottom: 'Снизу'
+                    }
+                },
+                {
+                    title: 'Показывать TMDB',
+                    type: 'toggle',
+                    name: 'rating_show_tmdb',
+                    value: true
+                },
+                {
+                    title: 'Показывать IMDB',
+                    type: 'toggle',
+                    name: 'rating_show_imdb',
+                    value: true
+                },
+                {
+                    title: 'Цветной текст рейтинга',
+                    type: 'toggle',
+                    name: 'colored_ratings_poster',
+                    value: true
+                },
+                {
+                    title: 'Цветной фон плашки',
+                    type: 'toggle',
+                    name: 'rating_colored_windows',
+                    value: false
+                },
+                {
+                    title: 'Прозрачность окна (%)',
+                    type: 'input',
+                    name: 'rating_window_opacity',
+                    value: '0'
+                },
+                {
+                    title: 'Смещение по X',
+                    type: 'input',
+                    name: 'rating_offset_x',
+                    value: '0'
+                },
+                {
+                    title: 'Смещение по Y',
+                    type: 'input',
+                    name: 'rating_offset_y',
+                    value: '0'
+                },
+                {
+                    title: 'Токен Кинопоиска (для IMDB)',
+                    type: 'input',
+                    name: 'rating_kp_api_key',
+                    value: ''
+                }
+            ]);
+            e.body.append(body);
         }
     });
 })();
